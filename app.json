@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Scope",
+    "slug": "scope",
+    "version": "1.0.0",
+    "scheme": "scope",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#080808"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.scope.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scope needs camera access to identify objects",
+        "NSPhotoLibraryUsageDescription": "Scope needs photo access to scan images"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#080808"
+      },
+      "package": "com.scope.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/images/logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Scope needs camera access to identify objects"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Scope needs photo access to scan images"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

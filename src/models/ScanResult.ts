@@ -1,0 +1,68 @@
+export type ScanCategory =
+  | 'plant' | 'animal' | 'food' | 'object'
+  | 'text' | 'place' | 'product' | 'person' | 'unknown';
+
+export type DangerLevel = 'safe' | 'caution' | 'dangerous';
+
+export type ScanMode = 'single' | 'multi' | 'count' | 'text_summary' | 'scam_check';
+
+export type ScamVerdict = 'likely_scam' | 'suspicious' | 'likely_legitimate' | 'unclear';
+
+export interface ScamScores {
+  legitimate: number;
+  suspicious: number;
+  scam: number;
+}
+
+export interface ScamResult {
+  verdict: ScamVerdict;
+  scores: ScamScores;
+  red_flags: string[];
+  safe_signals: string[];
+  advice: string;
+  detected_language: string | null;
+}
+
+export interface ScannedObject {
+  object_id: string;
+  name: string;
+  brand: string | null;
+  type: string;
+  category: ScanCategory;
+  count: number;
+  confidence: number;
+  is_unknown: boolean;
+  is_celebrity: boolean;
+  reason: string | null;
+  danger: DangerLevel | null;
+  bad: string[];
+  good: string[];
+  protect: string | null;
+  kill: string | null;
+  price: string | null;
+  buy_at: string | null;
+  calories: string | null;
+  text_summary: string | null;
+  detected_language: string | null;
+  scam_result: ScamResult | null;
+  profile_alerts: string[];
+  source: string;
+  output_language: string;
+}
+
+export interface MultiScanResult {
+  scan_id: string;
+  source: string;
+  processing_time_ms: number;
+  objects: ScannedObject[];
+}
+
+export interface ScanHistory {
+  id: string;
+  previewName: string;
+  previewCategory: ScanCategory;
+  objectCount: number;
+  thumbnailUri: string | null;
+  scannedAt: string;
+  result: MultiScanResult;
+}
