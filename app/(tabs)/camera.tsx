@@ -319,7 +319,7 @@ export default function CameraScreen() {
         <Pressable style={styles.modalOverlay} onPress={handleDismissPicker}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>{scanResult?.objects.length ?? 0} objects found</Text>
+            <Text style={styles.sheetTitle}>{scanResult?.objects.length ?? 0} Objects found</Text>
             <Text style={styles.sheetSubtitle}>Select one to view details</Text>
             <FlatList
               data={scanResult?.objects ?? []}
@@ -338,7 +338,7 @@ export default function CameraScreen() {
 }
 
 const BRACKET_SIZE = 40;
-const BRACKET_COLOR = '#fff';
+const BRACKET_COLOR = '#C0152A';
 const B = 3;
 
 const styles = StyleSheet.create({
@@ -403,8 +403,8 @@ const styles = StyleSheet.create({
     width: 36, height: 3, backgroundColor: '#333',
     borderRadius: 2, alignSelf: 'center', marginBottom: 20,
   },
-  sheetTitle: { color: '#fff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4 },
-  sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 20 },
+  sheetTitle: { color: '#fff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4, textTransform: 'capitalize' },
+  sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 20  },
   modeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 14,
@@ -472,5 +472,5 @@ const styles = StyleSheet.create({
   tr: { top: 0, right: 0, borderTopWidth: B, borderRightWidth: B },
   bl: { bottom: 0, left: 0, borderBottomWidth: B, borderLeftWidth: B },
   br: { bottom: 0, right: 0, borderBottomWidth: B, borderRightWidth: B },
-  scanningText: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 3 },
+  scanningText: { color: '#C0152A', fontSize: 11, fontWeight: '700', letterSpacing: 3 },
 });

@@ -100,7 +100,7 @@ export default function HistoryScreen() {
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.handle} />
             <Text style={styles.sheetTitle}>
-              {pickerItem?.objectCount ?? 0} objects found
+              {pickerItem?.objectCount ?? 0} Objects found
             </Text>
             <Text style={styles.sheetSubtitle}>Select one to view details</Text>
             <FlatList
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     width: 36, height: 3, backgroundColor: '#2A2A2A',
     borderRadius: 2, alignSelf: 'center', marginBottom: 20,
   },
-  sheetTitle: { color: '#E8E8E8', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4 },
+  sheetTitle: { color: '#fff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4, textTransform: 'capitalize' },
   sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 16 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#1E1E1E' },
 });

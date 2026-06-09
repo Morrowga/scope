@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
+    textTransform: 'capitalize',
     gap: 12,
   },
   iconWrap: {
@@ -67,8 +68,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  name: { color: '#fff', fontSize: 15, fontWeight: '500' },
-  type: { color: '#555', fontSize: 12, marginTop: 2 },
+  name: { color: '#fff', fontSize: 15, fontWeight: '500', textTransform: 'capitalize' },
+  type: { color: '#555', fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
   dangerPill: {
     flexDirection: 'row',
     alignItems: 'center',
