@@ -26,6 +26,17 @@ export class BurstLimitError extends Error {
   }
 }
 
+export class DailyLimitError extends Error {
+  retryAfter: number;
+  limit: number;
+  constructor(retryAfter: number, limit: number) {
+    super('RATE_LIMIT_EXCEEDED');
+    this.name = 'DailyLimitError';
+    this.retryAfter = retryAfter;
+    this.limit = limit;
+  }
+}
+
 export const scanImage = async (
   base64Image: string,
   language: string,
@@ -52,9 +63,16 @@ export const scanImage = async (
     }
     if (err.response?.status === 429) {
       const code = err.response?.data?.code;
+      const retryAfter = err.response?.data?.retry_after ?? 60;
       if (code === 'BURST_LIMIT') {
-        const retryAfter = err.response?.data?.retry_after ?? 60;
         throw new BurstLimitError(retryAfter);
+      }
+      if (code === 'RATE_LIMIT_EXCEEDED') {
+        // try to pull the limit number out of the message, fallback 30
+        const msg: string = err.response?.data?.message ?? '';
+        const m = msg.match(/(\d+)/);
+        const limit = m ? parseInt(m[1], 10) : 30;
+        throw new DailyLimitError(retryAfter, limit);
       }
     }
     throw e;
@@ -94,6 +112,9 @@ const mockScan = async (language: string): Promise<MultiScanResult> => {
         text_summary: null,
         detected_language: null,
         scam_result: null,
+        solve_result: null,
+        caption_result: null,  
+        fortune_result: null,
         profile_alerts: [],
         source: 'mock',
         output_language: language,

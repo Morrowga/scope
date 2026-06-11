@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, Modal, Pressable, Alert,
+  TouchableOpacity, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { useHistoryStore } from '../../src/store/historyStore';
 import { useScanStore } from '../../src/store/scanStore';
 import { HistoryItem } from '../../src/components/history/HistoryItem';
 import { ObjectPickerRow } from '../../src/components/common/ObjectPickerRow';
+import { SwipeableSheet } from '../../src/components/common/SwipeableSheet';
 import { ScanHistory } from '../../src/models/ScanHistory';
 import { ScannedObject } from '../../src/models/ScanResult';
 
@@ -20,9 +21,10 @@ export default function HistoryScreen() {
   const { setCurrentResult } = useScanStore();
   const [pickerItem, setPickerItem] = useState<ScanHistory | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
-  
+  const isClosing = useRef(false);
 
-  const openResult = (item: ScanHistory) => {
+  const openResult = useCallback((item: ScanHistory) => {
+    if (isClosing.current) return;
     if (item.result.objects.length === 1) {
       setCurrentResult(item.result.objects[0], item.thumbnailUri ?? null);
       router.push('/result');
@@ -30,28 +32,51 @@ export default function HistoryScreen() {
     }
     setPickerItem(item);
     setPickerVisible(true);
-  };
+  }, [setCurrentResult, router]);
 
-  const handleSelectObject = (obj: ScannedObject) => {
+  const handleClose = useCallback(() => {
+    isClosing.current = true;
     setPickerVisible(false);
-    setCurrentResult(obj, pickerItem?.thumbnailUri ?? null);
-    router.push('/result');
-  };
+    setTimeout(() => {
+      setPickerItem(null);
+      isClosing.current = false;
+    }, 300);
+  }, []);
 
-  const handleClearAll = () => {
+  const handleSelectObject = useCallback((obj: ScannedObject) => {
+    isClosing.current = true;
+    setPickerVisible(false);
+    const thumb = pickerItem?.thumbnailUri ?? null;
+    setTimeout(() => {
+      setPickerItem(null);
+      isClosing.current = false;
+      setCurrentResult(obj, thumb);
+      router.push('/result');
+    }, 50);
+  }, [pickerItem, setCurrentResult, router]);
+
+  const handleClearAll = useCallback(() => {
     Alert.alert(
       'Clear history',
       'This will permanently delete all scan history.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear all',
-          style: 'destructive',
-          onPress: async () => await clearHistory(),
-        },
+        { text: 'Clear all', style: 'destructive', onPress: () => clearHistory() },
       ]
     );
-  };
+  }, [clearHistory]);
+
+  const renderItem = useCallback(({ item }: { item: ScanHistory }) => (
+    <HistoryItem item={item} onPress={openResult} onDelete={deleteHistory} />
+  ), [openResult, deleteHistory]);
+
+  const renderPickerItem = useCallback(({ item }: { item: ScannedObject }) => (
+    <ObjectPickerRow obj={item} onPress={handleSelectObject} />
+  ), [handleSelectObject]);
+
+  const keyExtractor = useCallback((item: ScanHistory) => item.id, []);
+  const pickerKeyExtractor = useCallback((obj: ScannedObject, index: number) => `${obj.object_id}_${index}`, []);
+  const pickerSeparator = useCallback(() => <View style={styles.separator} />, []);
 
   if (history.length === 0) {
     return (
@@ -59,11 +84,8 @@ export default function HistoryScreen() {
         <Ionicons name="time-outline" size={56} color="#222" />
         <Text style={styles.emptyTitle}>No scans yet</Text>
         <Text style={styles.emptyText}>Start scanning to build your history.</Text>
-        <TouchableOpacity
-          style={styles.scanBtn}
-          onPress={() => router.push('/(tabs)/camera')}
-        >
-          <Ionicons name="scan-outline" size={16} color="#000" />
+        <TouchableOpacity style={styles.scanBtn} onPress={() => router.push('/camera')}>
+          <Ionicons name="scan-outline" size={16} color="#fff" />
           <Text style={styles.scanBtnText}>Start scanning</Text>
         </TouchableOpacity>
       </View>
@@ -82,39 +104,33 @@ export default function HistoryScreen() {
 
       <FlatList
         data={history}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <HistoryItem item={item} onPress={openResult} onDelete={deleteHistory} />
-        )}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={15}
       />
 
-      <Modal
+      <SwipeableSheet
         visible={pickerVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerVisible(false)}
+        onClose={handleClose}
+        bottomInset={insets.bottom}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setPickerVisible(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>
-              {pickerItem?.objectCount ?? 0} Objects found
-            </Text>
-            <Text style={styles.sheetSubtitle}>Select one to view details</Text>
-            <FlatList
-              data={pickerItem?.result.objects ?? []}
-              keyExtractor={(obj, index) => `${obj.object_id}_${index}`}
-              scrollEnabled={false}
-              renderItem={({ item: obj }) => (
-                <ObjectPickerRow obj={obj} onPress={handleSelectObject} />
-              )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <Text style={styles.sheetTitle}>
+          {pickerItem?.objectCount ?? 0} Objects found
+        </Text>
+        <Text style={styles.sheetSubtitle}>Select one to view details</Text>
+        <FlatList
+          data={pickerItem?.result.objects ?? []}
+          keyExtractor={pickerKeyExtractor}
+          scrollEnabled={false}
+          renderItem={renderPickerItem}
+          ItemSeparatorComponent={pickerSeparator}
+        />
+      </SwipeableSheet>
     </View>
   );
 }
@@ -122,22 +138,15 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#080808', paddingHorizontal: 16 },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 20,
   },
   header: { color: '#E8E8E8', fontSize: 26, fontWeight: '700', letterSpacing: -0.5 },
   clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: '#0F0F0F',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1E1E1E',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 10, backgroundColor: '#0F0F0F',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#1E1E1E',
   },
   clearBtnText: { color: '#555', fontSize: 13, fontWeight: '500' },
   empty: {
@@ -152,17 +161,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 14, marginTop: 28,
   },
   scanBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: '#0F0F0F',
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#1E1E1E',
-    paddingHorizontal: 20, paddingTop: 12,
-  },
-  handle: {
-    width: 36, height: 3, backgroundColor: '#2A2A2A',
-    borderRadius: 2, alignSelf: 'center', marginBottom: 20,
-  },
   sheetTitle: { color: '#fff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4, textTransform: 'capitalize' },
   sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 16 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#1E1E1E' },

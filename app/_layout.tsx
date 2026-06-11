@@ -32,7 +32,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (ready && fontsLoaded) {
-      SplashScreen.hideAsync().catch(() => {});
+      try {
+        SplashScreen.hideAsync();
+      } catch {
+        // ignore — splash not registered on this view controller
+      }
     }
   }, [ready, fontsLoaded]);
 
@@ -54,7 +58,20 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="result"
-            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            options={{ 
+              presentation: 'modal', 
+              animation: 'slide_from_bottom',
+              contentStyle: { backgroundColor: 'transparent' },
+              statusBarTranslucent: true,   
+            }}
+          />
+          <Stack.Screen
+            name="camera"
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="journal-camera"
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
           />
         </Stack>
       </SafeAreaProvider>

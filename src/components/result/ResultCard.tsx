@@ -7,7 +7,11 @@ import { GoodBadSection } from './GoodBadSection';
 import { PriceSection } from './PriceSection';
 import { ProtectKillSection } from './ProtectKillSection';
 import { ScamResultCard } from './ScamResultCard';
+import { SolveResultCard } from './SolveResultCard';
+import { CaptionResultCard } from './CaptionResultCard';
+import { FortuneResultCard } from './FortuneResultCard';
 import { BannerAdWidget } from './BannerAdWidget';
+import { useLanguageStore } from '../../store/languageStore';
 
 interface Props {
   result: ScannedObject;
@@ -20,14 +24,23 @@ const DANGER_CONFIG = {
 };
 
 export const ResultCard: React.FC<Props> = ({ result }) => {
+  const language = useLanguageStore((s) => s.selectedLanguage);
+  const isBurmese = language === 'my';
   const dangerCfg = result.danger ? DANGER_CONFIG[result.danger] : null;
 
-  // Scam check mode
+  if (result.solve_result) {
+    return (
+      <View style={styles.card}>
+        <SolveResultCard result={result} />
+        <BannerAdWidget />
+      </View>
+    );
+  }
+
   if (result.scam_result) {
     return <ScamResultCard result={result} />;
   }
 
-  // Text summary mode
   if (result.text_summary) {
     return (
       <View style={styles.card}>
@@ -38,10 +51,20 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
             <Text style={styles.langBadge}>{result.detected_language.toUpperCase()}</Text>
           )}
         </View>
-        <Text style={styles.summaryText}>{result.text_summary}</Text>
+        <Text style={[styles.summaryText, isBurmese && styles.summaryTextMM]}>
+          {result.text_summary}
+        </Text>
         <BannerAdWidget />
       </View>
     );
+  }
+
+  if (result.caption_result) {
+    return <CaptionResultCard result={result} />;
+  }
+
+  if (result.fortune_result) {
+    return <FortuneResultCard result={result} />;
   }
 
   // Count mode — name + count only, no bad/good/price
@@ -117,6 +140,11 @@ const styles = StyleSheet.create({
     borderColor: '#222', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
   },
   summaryText: { color: '#fff', fontSize: 15, lineHeight: 24 },
+  summaryTextMM: {
+    fontFamily: 'Padauk',
+    lineHeight: 32,
+    includeFontPadding: true,
+  },
   countRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   countName: { color: '#fff', fontSize: 22, fontWeight: '700', letterSpacing: -0.5, flex: 1 },
   countNum: { color: '#333', fontSize: 32, fontWeight: '700', letterSpacing: -1 },

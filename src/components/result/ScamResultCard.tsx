@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  itemText: { flex: 1, color: '#fff', fontSize: 13, lineHeight: 18 },
+  itemText: { flex: 1, color: '#fff', fontSize: 13, lineHeight: 18, textTransform: 'capitalize' },
   itemTextMuted: { flex: 1, color: '#555', fontSize: 13, lineHeight: 18 },
   adviceRow: {
     flexDirection: 'row',

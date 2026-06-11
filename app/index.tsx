@@ -12,7 +12,7 @@ export default function Index() {
     (async () => {
       const done = await isOnboardingDone();
       // setTarget('/onboarding');
-      setTarget(done ? '/home' : '/onboarding');
+      setTarget(done ? '/(tabs)' : '/onboarding');
     })();
   }, []);
 

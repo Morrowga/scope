@@ -9,6 +9,10 @@ export const LANGUAGES: Language[] = [
   { code: 'my', name: 'Burmese', flag: '🇲🇲' },
   { code: 'th', name: 'Thai', flag: '🇹🇭' },
   { code: 'ja', name: 'Japanese', flag: '🇯🇵' },
+  { code: 'ms', name: 'Malay', flag: '🇲🇾' },        
+  { code: 'tl', name: 'Filipino', flag: '🇵🇭' },     
+  { code: 'km', name: 'Khmer', flag: '🇰🇭' },        
+  { code: 'lo', name: 'Lao', flag: '🇱🇦' }, 
   { code: 'ko', name: 'Korean', flag: '🇰🇷' },
   { code: 'zh-cn', name: 'Chinese (Simplified)', flag: '🇨🇳' },
   { code: 'zh-tw', name: 'Chinese (Traditional)', flag: '🇹🇼' },
@@ -25,7 +29,7 @@ export const LANGUAGES: Language[] = [
   { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
   { code: 'nl', name: 'Dutch', flag: '🇳🇱' },
   { code: 'pl', name: 'Polish', flag: '🇵🇱' },
-  { code: 'sv', name: 'Swedish', flag: '🇸🇪' },
+  { code: 'sv', name: 'Swedish', flag: '🇸🇪' }
 ];
 
 export const getLanguageByCode = (code: string): Language =>

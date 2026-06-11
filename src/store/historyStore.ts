@@ -25,7 +25,10 @@ export const useHistoryStore = create<HistoryStore>((set, get) => ({
     }
   },
   addHistory: async (item) => {
-    const updated = [item, ...get().history].slice(0, 100);
+    // Dedupe by id — a cached re-scan returns the same scan_id, so remove any
+    // existing entry with this id before prepending (prevents duplicate keys).
+    const withoutDupe = get().history.filter((h) => h.id !== item.id);
+    const updated = [item, ...withoutDupe].slice(0, 100);
     set({ history: updated });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   },

@@ -1,7 +1,9 @@
 export const Config = {
   // Your local backend — for physical device use your Mac IP (ipconfig getifaddr en0)
   // For iOS simulator, localhost works fine
-  apiBaseUrl: 'http://172.20.10.2:8000',
+  // apiBaseUrl: 'http://172.20.10.2:8000',
+  apiBaseUrl: 'http://192.168.1.21:8000',
+  
 
   // Set to false — we have a real backend now
   useMock: false,

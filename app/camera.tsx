@@ -1,9 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Alert,
-  FlatList, Modal, Pressable, Image, Switch,
+    View, Text, StyleSheet, TouchableOpacity, Alert,
+  FlatList, Modal, Pressable, Image, Switch, ActivityIndicator
 } from 'react-native';
-import { Colors } from '../../src/constants/colors';
+import { Colors } from '../src/constants/colors';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,35 +15,43 @@ import {
   CameraView as ExpoCameraView, FlashMode, useCameraPermissions,
 } from 'expo-camera';
 
-import { ScanCamera } from '../../src/components/camera/CameraView';
-import { ScanButton } from '../../src/components/camera/ScanButton';
-import { FlashToggle } from '../../src/components/camera/FlashToggle';
-import { NoObjectsHint } from '../../src/components/camera/NoObjectsHint';
-import { LanguageSelector } from '../../src/components/common/LanguageSelector';
-import { ObjectPickerRow } from '../../src/components/common/ObjectPickerRow';
-import { useScanStore } from '../../src/store/scanStore';
-import { useLanguageStore } from '../../src/store/languageStore';
-import { useHistoryStore } from '../../src/store/historyStore';
-import { getLanguageByCode } from '../../src/constants/languages';
-import { scanImage, ContentBlockedError, BurstLimitError } from '../../src/services/apiService';
-import { maybeShowInterstitial } from '../../src/services/adService';
-import { compressImage, makeThumbnail } from '../../src/utils/imageHelper';
-import { pickImageFromGallery } from '../../src/utils/permissionHelper';
-import { MultiScanResult, ScannedObject, ScanMode } from '../../src/models/ScanResult';
+import { ScanCamera } from '../src/components/camera/CameraView';
+import { ScanButton } from '../src/components/camera/ScanButton';
+import { FlashToggle } from '../src/components/camera/FlashToggle';
+import { LanguageSelector } from '../src/components/common/LanguageSelector';
+import { ObjectPickerRow } from '../src/components/common/ObjectPickerRow';
+import { SwipeableSheet } from '../src/components/common/SwipeableSheet';
+import { useScanStore } from '../src/store/scanStore';
+import { useLanguageStore } from '../src/store/languageStore';
+import { useHistoryStore } from '../src/store/historyStore';
+import { getLanguageByCode } from '../src/constants/languages';
+import { scanImage, ContentBlockedError, BurstLimitError } from '../src/services/apiService';
+import { maybeShowInterstitial } from '../src/services/adService';
+import { compressImage, makeThumbnail } from '../src/utils/imageHelper';
+import { pickImageFromGallery } from '../src/utils/permissionHelper';
+import { MultiScanResult, ScannedObject, ScanMode } from '../src/models/ScanResult';
 
 const SCAN_MODES: { key: ScanMode; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'multi',        label: 'Normal',      desc: 'Identify all objects',        icon: 'scan-outline' },
-  { key: 'single',       label: 'Focus',       desc: 'Single prominent object',     icon: 'locate-outline' },
-  { key: 'count',        label: 'Count',       desc: 'Count objects only',          icon: 'layers-outline' },
-  { key: 'text_summary', label: 'Text',        desc: 'Summarize visible text',      icon: 'document-text-outline' },
-  { key: 'scam_check',   label: 'Scam Check',  desc: 'Analyze message for scams',   icon: 'shield-checkmark-outline' },
+  { key: 'single',       label: 'Focus',        desc: 'Single prominent object',     icon: 'locate-outline' },
+  { key: 'multi',        label: 'Multi Object', desc: 'Identify all objects',        icon: 'scan-outline' },
+  { key: 'count',        label: 'Count',        desc: 'Count objects only',          icon: 'layers-outline' },
+  { key: 'text_summary', label: 'Text',         desc: 'Summarize visible text',      icon: 'document-text-outline' },
+  { key: 'scam_check',   label: 'Scam Check',   desc: 'Analyze message for scams',   icon: 'shield-checkmark-outline' },
+  { key: 'solve',        label: 'Solve',        desc: 'Solve problems & questions',  icon: 'bulb-outline' },
+  { key: 'caption',      label: 'Caption',      desc: 'Generate social captions',    icon: 'chatbubble-ellipses-outline' },
+  { key: 'fortune',      label: 'Fortune',      desc: 'Read your daily fortune',     icon: 'sparkles-outline' },
 ];
 
-const ScanOverlay: React.FC = () => {
+const BRACKET_SIZE = 40;
+const BRACKET_COLOR = '#C0152A';
+const B = 3;
+
+// Defined outside component — never re-created
+const ScanOverlay: React.FC = React.memo(() => {
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
 
-  useEffect(() => {
+  React.useEffect(() => {
     opacity.value = withRepeat(
       withSequence(
         withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.ease) }),
@@ -66,17 +74,16 @@ const ScanOverlay: React.FC = () => {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <View style={styles.overlayDim} />
       <Animated.View style={[styles.bracketsContainer, animStyle]}>
         <View style={[styles.bracket, styles.tl]} />
         <View style={[styles.bracket, styles.tr]} />
         <View style={[styles.bracket, styles.bl]} />
         <View style={[styles.bracket, styles.br]} />
-        <Text style={styles.scanningText}>SCANNING</Text>
+        <ActivityIndicator size="large" color={Colors.accent} />
       </Animated.View>
     </View>
   );
-};
+});
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -88,30 +95,37 @@ export default function CameraScreen() {
   const [langOpen, setLangOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
-  const [scanMode, setScanMode] = useState<ScanMode>('multi');
+  const [scanMode, setScanMode] = useState<ScanMode>('single');
   const [scanResult, setScanResult] = useState<MultiScanResult | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const { isScanning, setIsScanning, setCurrentResult, deepScan, setDeepScan } = useScanStore();
   const { selectedLanguage } = useLanguageStore();
   const { addHistory } = useHistoryStore();
-  const lang = getLanguageByCode(selectedLanguage);
+  const lang = useMemo(() => getLanguageByCode(selectedLanguage), [selectedLanguage]);
+  const currentThumb = useRef<string | null>(null);
 
-  const currentMode = SCAN_MODES.find(m => m.key === scanMode) ?? SCAN_MODES[0];
-  const [currentThumb, setCurrentThumb] = useState<string | null>(null);
+  // Memoized — avoids .find() on every render
+  const currentMode = useMemo(
+    () => SCAN_MODES.find(m => m.key === scanMode) ?? SCAN_MODES[0],
+    [scanMode]
+  );
 
-  const runScan = async (uri: string) => {
+  const SPECIAL_MODES = useMemo(() => new Set([
+    'single', 'count', 'text_summary', 'scam_check', 'solve', 'caption', 'fortune'
+  ]), []);
+
+  const runScan = useCallback(async (uri: string) => {
     setFrozenFrame(uri);
     setIsScanning(true);
     try {
       const base64 = await compressImage(uri);
       const result = await scanImage(base64, selectedLanguage, scanMode, deepScan);
-  
+
       let thumb: string | null = null;
       try { thumb = await makeThumbnail(uri); } catch { thumb = null; }
-  
-      setCurrentThumb(thumb);
-  
+      currentThumb.current = thumb;
+
       const firstObj = result.objects[0];
       if (firstObj) {
         await addHistory({
@@ -124,20 +138,18 @@ export default function CameraScreen() {
           result,
         });
       }
-  
-      // single object or special modes — go straight to result
-      if (result.objects.length === 1 || scanMode === 'single' || scanMode === 'count' || scanMode === 'text_summary' || scanMode === 'scam_check') {
+
+      if (result.objects.length === 1 || SPECIAL_MODES.has(scanMode)) {
         setFrozenFrame(null);
-        setCurrentResult(result.objects[0], thumb); // ONE call — always with thumb
+        setCurrentResult(result.objects[0], thumb);
         router.push('/result');
         await maybeShowInterstitial();
         return;
       }
-  
-      // multi mode — show picker
+
       setScanResult(result);
       setPickerVisible(true);
-  
+
     } catch (e) {
       setFrozenFrame(null);
       if (e instanceof ContentBlockedError) {
@@ -152,22 +164,22 @@ export default function CameraScreen() {
     } finally {
       setIsScanning(false);
     }
-  };
+  }, [selectedLanguage, scanMode, deepScan, SPECIAL_MODES, addHistory, setCurrentResult, setIsScanning, router]);
 
-  const handleSelectObject = async (obj: ScannedObject) => {
+  const handleSelectObject = useCallback((obj: ScannedObject) => {
     setPickerVisible(false);
     setFrozenFrame(null);
-    setCurrentResult(obj, currentThumb); // pass thumb here
+    setCurrentResult(obj, currentThumb.current);
     router.push('/result');
-    await maybeShowInterstitial();
-  };
+    maybeShowInterstitial();
+  }, [setCurrentResult, router]);
 
-  const handleDismissPicker = () => {
+  const handleDismissPicker = useCallback(() => {
     setPickerVisible(false);
     setFrozenFrame(null);
-  };
+  }, []);
 
-  const handleScan = async () => {
+  const handleScan = useCallback(async () => {
     if (isScanning) return;
     try {
       const photo = await cameraRef.current?.takePictureAsync({ quality: 0.8 });
@@ -176,14 +188,49 @@ export default function CameraScreen() {
     } catch {
       Alert.alert('Error', 'Could not capture a photo.');
     }
-  };
+  }, [isScanning, runScan]);
 
-  const handleGallery = async () => {
+  const handleGallery = useCallback(async () => {
     if (isScanning) return;
     const uri = await pickImageFromGallery();
     if (!uri) return;
     await runScan(uri);
-  };
+  }, [isScanning, runScan]);
+
+  const handleFlashToggle = useCallback(() => {
+    setFlash(f => f === 'on' ? 'off' : 'on');
+  }, []);
+
+  const handleModeSelect = useCallback((key: ScanMode) => {
+    setScanMode(key);
+    setSettingsOpen(false);
+  }, []);
+
+  const renderModeItem = useCallback(({ item: mode }: { item: typeof SCAN_MODES[0] }) => {
+    const active = scanMode === mode.key;
+    return (
+      <TouchableOpacity
+        style={[styles.modeRow, active && styles.modeRowActive]}
+        onPress={() => handleModeSelect(mode.key)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>
+          <Ionicons name={mode.icon} size={18} color={active ? '#fff' : '#555'} />
+        </View>
+        <View style={styles.modeInfo}>
+          <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{mode.label}</Text>
+          <Text style={styles.modeDesc}>{mode.desc}</Text>
+        </View>
+        {active && <Ionicons name="checkmark" size={16} color={Colors.accent} />}
+      </TouchableOpacity>
+    );
+  }, [scanMode, handleModeSelect]);
+
+  const renderPickerItem = useCallback(({ item }: { item: ScannedObject }) => (
+    <ObjectPickerRow obj={item} onPress={handleSelectObject} />
+  ), [handleSelectObject]);
+
+  const pickerSeparator = useCallback(() => <View style={styles.separator} />, []);
 
   if (!permission) return <View style={styles.permissionContainer} />;
 
@@ -211,19 +258,10 @@ export default function CameraScreen() {
         </>
       ) : (
         <ScanCamera ref={cameraRef} facing="back" flash={flash}>
-          {/* Top bar */}
-            <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-              <View style={styles.nameRow}>
-                <View style={styles.headerLogoWrap}>
-                  <Image
-                    source={require('../../assets/images/logo.png')}
-                    style={styles.headerLogo}
-                    resizeMode="contain"
-                  />
-                </View>
-                <Text style={styles.appName}>Scope</Text>
-              </View>
-            {/* <Text style={styles.appName}>Scope</Text> */}
+          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+            </TouchableOpacity>
             <View style={styles.topRight}>
               <TouchableOpacity style={styles.iconBtn} onPress={() => setLangOpen(true)}>
                 <Text style={styles.flag}>{lang.flag}</Text>
@@ -237,25 +275,18 @@ export default function CameraScreen() {
             </View>
           </View>
 
-          {/* {!isScanning && <NoObjectsHint />} */}
-
-          {/* Mode indicator pill */}
           <View style={styles.modePill}>
             <Ionicons name={currentMode.icon} size={12} color="#888" />
             <Text style={styles.modePillText}>{currentMode.label}</Text>
           </View>
 
-          {/* Bottom controls */}
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
             <TouchableOpacity style={styles.sideBtn} onPress={handleGallery}>
               <Ionicons name="images-outline" size={22} color="#fff" />
             </TouchableOpacity>
             <ScanButton onPress={handleScan} isScanning={isScanning} />
             <View style={styles.sideBtn}>
-              <FlashToggle
-                enabled={flash === 'on'}
-                onToggle={() => setFlash((f) => (f === 'on' ? 'off' : 'on'))}
-              />
+              <FlashToggle enabled={flash === 'on'} onToggle={handleFlashToggle} />
             </View>
           </View>
         </ScanCamera>
@@ -263,59 +294,34 @@ export default function CameraScreen() {
 
       <LanguageSelector visible={langOpen} onClose={() => setLangOpen(false)} />
 
-      {/* Settings modal */}
-      <Modal visible={settingsOpen} transparent animationType="slide" onRequestClose={() => setSettingsOpen(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setSettingsOpen(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-            <View style={styles.handle} />
-            <Text style={styles.sheetTitle}>Scan mode</Text>
-            <Text style={styles.sheetSubtitle}>Choose how objects are identified</Text>
+      <SwipeableSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} bottomInset={insets.bottom}>
+        <Text style={styles.sheetTitle}>Scan mode</Text>
+        <Text style={styles.sheetSubtitle}>Choose how objects are identified</Text>
+        <FlatList
+          data={SCAN_MODES}
+          keyExtractor={item => item.key}
+          renderItem={renderModeItem}
+          scrollEnabled={false}
+        />
+        {/* <View style={styles.toggleRow}>
+          <View style={styles.toggleIconWrap}>
+            <Ionicons name="layers-outline" size={18} color="#555" />
+          </View>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Deep scan</Text>
+            <Text style={styles.toggleDesc}>Detect all objects including background</Text>
+          </View>
+          <Switch
+            value={deepScan}
+            onValueChange={setDeepScan}
+            trackColor={{ false: Colors.border, true: Colors.accentDark }}
+            thumbColor={deepScan ? Colors.accent : '#555'}
+            ios_backgroundColor="#1a1a1a"
+          />
+        </View> */}
+      </SwipeableSheet>
 
-            {SCAN_MODES.map((mode) => {
-              const active = scanMode === mode.key;
-              return (
-                <TouchableOpacity
-                  key={mode.key}
-                  style={[styles.modeRow, active && styles.modeRowActive]}
-                  onPress={() => { setScanMode(mode.key); setSettingsOpen(false); }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>
-                    <Ionicons name={mode.icon} size={18} color={active ? '#fff' : '#555'} />
-                  </View>
-                  <View style={styles.modeInfo}>
-                    <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{mode.label}</Text>
-                    <Text style={styles.modeDesc}>{mode.desc}</Text>
-                  </View>
-                  {active && <Ionicons name="checkmark" size={16} color={Colors.accent} />}
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Deep scan toggle */}
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleIconWrap}>
-                <Ionicons name="layers-outline" size={18} color="#555" />
-              </View>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Deep scan</Text>
-                <Text style={styles.toggleDesc}>Detect all objects including background</Text>
-              </View>
-              <Switch
-                value={deepScan}
-                onValueChange={(v) => setDeepScan(v)}
-                trackColor={{ false: Colors.border, true: Colors.accentDark }}
-                thumbColor={deepScan ? Colors.accent : '#555'}
-                ios_backgroundColor="#1a1a1a"
-              />
-            </View>
-
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Object picker */}
-      <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={handleDismissPicker}>
+      <Modal visible={pickerVisible} transparent animationType="none" onRequestClose={handleDismissPicker}>
         <Pressable style={styles.modalOverlay} onPress={handleDismissPicker}>
           <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.handle} />
@@ -325,10 +331,8 @@ export default function CameraScreen() {
               data={scanResult?.objects ?? []}
               keyExtractor={(item, index) => `${item.object_id}_${index}`}
               scrollEnabled={false}
-              renderItem={({ item }) => (
-                <ObjectPickerRow obj={item} onPress={handleSelectObject} />
-              )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              renderItem={renderPickerItem}
+              ItemSeparatorComponent={pickerSeparator}
             />
           </Pressable>
         </Pressable>
@@ -337,10 +341,6 @@ export default function CameraScreen() {
   );
 }
 
-const BRACKET_SIZE = 40;
-const BRACKET_COLOR = '#C0152A';
-const B = 3;
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   topBar: {
@@ -348,7 +348,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 8,
   },
-  appName: { color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: -0.5 },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -404,7 +403,7 @@ const styles = StyleSheet.create({
     borderRadius: 2, alignSelf: 'center', marginBottom: 20,
   },
   sheetTitle: { color: '#fff', fontSize: 17, fontWeight: '600', letterSpacing: -0.3, marginBottom: 4, textTransform: 'capitalize' },
-  sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 20  },
+  sheetSubtitle: { color: '#555', fontSize: 13, marginBottom: 20 },
   modeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     paddingVertical: 14,
@@ -444,29 +443,16 @@ const styles = StyleSheet.create({
     top: '20%', left: '10%', right: '10%', bottom: '20%',
     alignItems: 'center', justifyContent: 'center',
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerLogoWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.accentSubtle,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.accentSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerLogo: {
-    width: 40,
-    height: 40,
-  },
   bracket: {
     position: 'absolute',
     width: BRACKET_SIZE, height: BRACKET_SIZE,
     borderColor: BRACKET_COLOR,
+  },
+  scanningIndicator: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   tl: { top: 0, left: 0, borderTopWidth: B, borderLeftWidth: B },
   tr: { top: 0, right: 0, borderTopWidth: B, borderRightWidth: B },

@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
-  Modal, View, Text, TextInput,
+  View, Text, TextInput,
   FlatList, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LANGUAGES, Language } from '../../constants/languages';
 import { useLanguageStore } from '../../store/languageStore';
 import { Colors } from '../../constants/colors';
+import { SwipeableSheet } from './SwipeableSheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props {
   visible: boolean;
@@ -16,6 +18,7 @@ interface Props {
 export const LanguageSelector: React.FC<Props> = ({ visible, onClose }) => {
   const { selectedLanguage, setLanguage } = useLanguageStore();
   const [query, setQuery] = useState('');
+  const insets = useSafeAreaInsets();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -36,7 +39,6 @@ export const LanguageSelector: React.FC<Props> = ({ visible, onClose }) => {
         onPress={() => handleSelect(item.code)}
         activeOpacity={0.6}
       >
-        {/* Flag stays — no icon equivalent */}
         <Text style={styles.flag}>{item.flag}</Text>
         <Text style={[styles.name, active && styles.nameActive]}>
           {item.name}
@@ -49,80 +51,49 @@ export const LanguageSelector: React.FC<Props> = ({ visible, onClose }) => {
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Language</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={12}>
-              <Ionicons name="close" size={22} color="#555" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={16} color="#555" />
-            <TextInput
-              style={styles.search}
-              placeholder="Search"
-              placeholderTextColor="#444"
-              value={query}
-              onChangeText={setQuery}
-              autoCorrect={false}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#555" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <FlatList
-            data={filtered}
-            keyExtractor={(l) => l.code}
-            renderItem={renderItem}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <Text style={styles.empty}>No languages found</Text>
-            }
-          />
-        </View>
+    <SwipeableSheet visible={visible} onClose={onClose} bottomInset={insets.bottom}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Language</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={12}>
+          <Ionicons name="close" size={22} color="#555" />
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      {/* Search */}
+      <View style={styles.searchBox}>
+        <Ionicons name="search-outline" size={16} color="#555" />
+        <TextInput
+          style={styles.search}
+          placeholder="Search"
+          placeholderTextColor="#444"
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery('')}>
+            <Ionicons name="close-circle" size={16} color="#555" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* List — fixed height so it doesn't fight with swipe */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(l) => l.code}
+        renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
+        style={styles.list}
+        ListEmptyComponent={
+          <Text style={styles.empty}>No languages found</Text>
+        }
+      />
+    </SwipeableSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#0a0a0a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    maxHeight: '80%',
-  },
-  handle: {
-    width: 36,
-    height: 3,
-    backgroundColor: '#333',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 16,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -147,6 +118,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     padding: 0,
+  },
+  list: {
+    maxHeight: 420,   // fixed height — prevents FlatList scroll conflicting with swipe
   },
   row: {
     flexDirection: 'row',

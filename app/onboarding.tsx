@@ -59,7 +59,7 @@ export default function Onboarding() {
 
   const finish = async () => {
     await setOnboardingDone();
-    router.replace('/home');
+    router.replace('/(tabs)');
   };
 
   const next = () => {
