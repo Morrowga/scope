@@ -12,6 +12,8 @@ import { CaptionResultCard } from './CaptionResultCard';
 import { FortuneResultCard } from './FortuneResultCard';
 import { BannerAdWidget } from './BannerAdWidget';
 import { useLanguageStore } from '../../store/languageStore';
+import { InspectResultCard } from './InspectResultCard';
+import { DiagnoseResultCard } from './DiagnoseResultCard';
 
 interface Props {
   result: ScannedObject;
@@ -32,7 +34,7 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
     return (
       <View style={styles.card}>
         <SolveResultCard result={result} />
-        <BannerAdWidget />
+        {/* <BannerAdWidget /> */}
       </View>
     );
   }
@@ -41,7 +43,7 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
     return <ScamResultCard result={result} />;
   }
 
-  if (result.text_summary) {
+  if (result.text_bullets && result.text_bullets.length > 0) {
     return (
       <View style={styles.card}>
         <View style={styles.summaryHeader}>
@@ -51,10 +53,20 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
             <Text style={styles.langBadge}>{result.detected_language.toUpperCase()}</Text>
           )}
         </View>
-        <Text style={[styles.summaryText, isBurmese && styles.summaryTextMM]}>
-          {result.text_summary}
-        </Text>
-        <BannerAdWidget />
+        <View style={{ gap: 10, marginTop: 4 }}>
+          {result.text_bullets.map((bullet, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <View style={{
+                width: 4, height: 4, borderRadius: 2,
+                backgroundColor: '#444', marginTop: 8,
+              }} />
+              <Text style={[styles.summaryText, isBurmese && styles.summaryTextMM, { flex: 1 }]}>
+                {bullet}
+              </Text>
+            </View>
+          ))}
+        </View>
+        {/* <BannerAdWidget /> */}
       </View>
     );
   }
@@ -67,6 +79,14 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
     return <FortuneResultCard result={result} />;
   }
 
+  if (result.inspect_result) {
+    return <InspectResultCard result={result} />;
+  }
+
+  if (result.diagnose_result) {
+    return <DiagnoseResultCard result={result} />;
+  }
+
   // Count mode — name + count only, no bad/good/price
   if (result.bad.length === 0 && result.good.length === 0 && !result.price && result.count >= 1) {
     return (
@@ -76,7 +96,7 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
           <Text style={styles.countNum}>×{result.count}</Text>
         </View>
         <Text style={styles.countCategory}>{result.type || result.category}</Text>
-        <BannerAdWidget />
+        {/* <BannerAdWidget /> */}
       </View>
     );
   }
@@ -113,7 +133,7 @@ export const ResultCard: React.FC<Props> = ({ result }) => {
         </View>
       )}
 
-      <BannerAdWidget />
+      {/* <BannerAdWidget /> */}
     </View>
   );
 };

@@ -39,21 +39,28 @@
       "favicon": "./assets/images/logo.png"
     },
     "plugins": [
-      "expo-router",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Scope needs camera access to identify objects"
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Scope needs photo access to scan images"
-        }
-      ],
-      "expo-font",
-      "expo-secure-store"
+        "expo-router",
+        [
+          "expo-camera",
+          {
+            "cameraPermission": "Scope needs camera access to identify objects"
+          }
+        ],
+        [
+          "expo-image-picker",
+          {
+            "photosPermission": "Scope needs photo access to scan images"
+          }
+        ],
+        [
+          "react-native-google-mobile-ads",
+          {
+            "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+            "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          }
+        ],
+        "expo-font",
+        "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

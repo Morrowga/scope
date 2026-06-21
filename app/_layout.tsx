@@ -9,6 +9,8 @@ import { useLanguageStore } from '../src/store/languageStore';
 import { useHistoryStore } from '../src/store/historyStore';
 import { initAds } from '../src/services/adService';
 import { useFonts } from 'expo-font';
+import { useDeviceStore } from '../src/store/deviceStore';
+import { usePremiumStore } from '../src/store/premiumStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -23,12 +25,22 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
-        await Promise.all([loadLanguage(), loadHistory(), initAds()]);
+        await Promise.all([
+          loadLanguage(), 
+          loadHistory(), 
+          initAds(),
+          useDeviceStore.getState().loadDeviceId(),  
+          usePremiumStore.getState().configure(), 
+        ]);
       } finally {
         setReady(true);
       }
     })();
   }, [loadLanguage, loadHistory]);
+
+  useEffect(() => {
+  useDeviceStore.getState().loadDeviceId();
+}, []);
 
   useEffect(() => {
     if (ready && fontsLoaded) {
@@ -71,6 +83,10 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="journal-camera"
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="face-setup"
             options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
           />
         </Stack>

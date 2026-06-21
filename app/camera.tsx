@@ -40,6 +40,9 @@ const SCAN_MODES: { key: ScanMode; label: string; desc: string; icon: keyof type
   { key: 'solve',        label: 'Solve',        desc: 'Solve problems & questions',  icon: 'bulb-outline' },
   { key: 'caption',      label: 'Caption',      desc: 'Generate social captions',    icon: 'chatbubble-ellipses-outline' },
   { key: 'fortune',      label: 'Fortune',      desc: 'Read your daily fortune',     icon: 'sparkles-outline' },
+  { key: 'inspect',      label: 'Inspect',      desc: 'Deep identify + rarity + value', icon: 'search-outline' },
+  { key: 'diagnose', label: 'Diagnose', desc: 'Assess damage & get fix steps', icon: 'construct-outline' },
+
 ];
 
 const BRACKET_SIZE = 40;
@@ -301,7 +304,9 @@ export default function CameraScreen() {
           data={SCAN_MODES}
           keyExtractor={item => item.key}
           renderItem={renderModeItem}
-          scrollEnabled={false}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={false}
+          style={{ maxHeight: 320 }}
         />
         {/* <View style={styles.toggleRow}>
           <View style={styles.toggleIconWrap}>
@@ -368,6 +373,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+  },
+  modeList: {
+    maxHeight: 340,
   },
   modePillText: { color: '#888', fontSize: 11, fontWeight: '600', letterSpacing: 1 },
   bottomBar: {

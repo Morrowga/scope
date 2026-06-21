@@ -12,6 +12,7 @@ import { Colors } from '../../src/constants/colors';
 import { usePremiumStore } from '../../src/store/premiumStore';
 import { useLanguageStore } from '../../src/store/languageStore';
 import { getJournalDay, summarizeJournalDay, JournalEntry } from '../../src/services/journalService';
+import { PricingPopup } from '../../src/components/common/PricingPopup';
 
 const GOLD = '#C9A84C';
 const GOLD_DIM = '#7A6030';
@@ -183,46 +184,7 @@ const ConfirmModal: React.FC<{ visible: boolean; tooEarly: boolean; onConfirm: (
   </Modal>
 ));
 
-// ── Pricing Popup ─────────────────────────────────────────────────────────────
-const PricingPopup: React.FC<{ visible: boolean; onClose: () => void }> = memo(({ visible, onClose }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={popStyles.overlay} onPress={onClose}>
-        <Pressable style={[popStyles.sheet, { paddingBottom: insets.bottom + 24 }]}>
-          <View style={popStyles.handle} />
-          <View style={popStyles.iconWrap}><Text style={popStyles.iconEmoji}>🌿</Text></View>
-          <Text style={popStyles.title}>Daily Journal</Text>
-          <Text style={popStyles.subtitle}>Track your day, see where you've been, and get a personal AI summary of your life.</Text>
-          {['Full day timeline with photos', 'Location tracking', 'AI daily summary', 'No ads'].map((f) => (
-            <View key={f} style={popStyles.featureRow}>
-              <Ionicons name="checkmark-circle" size={16} color={GOLD} />
-              <Text style={popStyles.featureText}>{f}</Text>
-            </View>
-          ))}
-          <View style={popStyles.pricingRow}>
-            <TouchableOpacity style={popStyles.priceCard} activeOpacity={0.8}>
-              <Text style={popStyles.priceRegion}>SEA</Text>
-              <Text style={popStyles.priceAmount}>$2.99</Text>
-              <Text style={popStyles.pricePer}>/ month</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[popStyles.priceCard, popStyles.priceCardHighlight]} activeOpacity={0.8}>
-              <Text style={[popStyles.priceRegion, { color: GOLD }]}>EU / US</Text>
-              <Text style={[popStyles.priceAmount, { color: GOLD }]}>$8.99</Text>
-              <Text style={[popStyles.pricePer, { color: GOLD_DIM }]}>/ month</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={popStyles.ctaBtn} activeOpacity={0.85}>
-            <Text style={popStyles.ctaBtnText}>Unlock Premium</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={popStyles.dismissBtn}>
-            <Text style={popStyles.dismissText}>Maybe later</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-});
+
 
 // ── Summary View ──────────────────────────────────────────────────────────────
 const SummaryView: React.FC<{
@@ -400,7 +362,7 @@ export default function JournalScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.lockedWrap}>
-          <Text style={styles.lockedEmoji}>🌿</Text>
+          <Foundation name="trees" size={45} color={Colors.accent} />
           <Text style={styles.lockedTitle}>Daily Journal</Text>
           <Text style={styles.lockedSub}>Unlock to track your day and get personal AI summaries</Text>
           <TouchableOpacity style={styles.unlockBtn} onPress={() => setPricingVisible(true)}>
@@ -543,11 +505,11 @@ const treeStyles = StyleSheet.create({
 });
 
 const sumStyles = StyleSheet.create({
-  photosStack: {  
-    flexDirection: 'row', alignItems: 'flex-start',
-    justifyContent: 'center', paddingHorizontal: 20,
-    paddingVertical: 16, minHeight: 240,
-  },
+  // photosStack: {  
+  //   flexDirection: 'row', alignItems: 'flex-start',
+  //   justifyContent: 'center', paddingHorizontal: 20,
+  //   paddingVertical: 16, minHeight: 240,
+  // },
   photosScroll: {
     flexDirection: 'row',
     alignItems: 'flex-start',

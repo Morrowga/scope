@@ -1,17 +1,30 @@
 import React, { useRef, useEffect } from 'react';
-import { Animated, PanResponder, Modal, Pressable, View } from 'react-native';
+import { Animated, PanResponder, Modal, Pressable, View, StyleSheet, ViewStyle } from 'react-native';
 
 interface SwipeableSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
   bottomInset?: number;
+  maxHeight?: number | string;
 }
 
 export const SwipeableSheet: React.FC<SwipeableSheetProps> = ({
-  visible, onClose, children, bottomInset = 0,
+  visible, onClose, children, bottomInset = 0, maxHeight = '100%',
 }) => {
   const translateY = useRef(new Animated.Value(600)).current;
+
+  const sheetDynamicStyle: ViewStyle = {
+    backgroundColor: '#0a0a0a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 0.5,
+    borderColor: '#1a1a1a',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: bottomInset + 24,
+    maxHeight: maxHeight as any,
+  };
 
   // Animate in when visible becomes true
   useEffect(() => {
@@ -68,8 +81,7 @@ export const SwipeableSheet: React.FC<SwipeableSheetProps> = ({
         <Pressable>
           <Animated.View
             style={[
-              sheetStyle,
-              { paddingBottom: bottomInset + 24 },
+              sheetDynamicStyle,
               { transform: [{ translateY }] },
             ]}
             {...panResponder.panHandlers}

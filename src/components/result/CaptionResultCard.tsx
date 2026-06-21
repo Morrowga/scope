@@ -72,7 +72,7 @@ export const CaptionResultCard: React.FC<Props> = ({ result }) => {
         </View>
       </View>
 
-      <BannerAdWidget />
+      {/* <BannerAdWidget /> */}
     </View>
   );
 };

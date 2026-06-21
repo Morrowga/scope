@@ -90,7 +90,7 @@ export const FortuneResultCard: React.FC<Props> = ({ result }) => {
         <Text style={styles.disclaimerText}>For entertainment only.</Text>
       </View>
 
-      <BannerAdWidget />
+      {/* <BannerAdWidget /> */}
     </View>
   );
 };

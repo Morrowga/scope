@@ -6,7 +6,7 @@ export type DangerLevel = 'safe' | 'caution' | 'dangerous';
 
 export type ScanMode =
   | 'single' | 'multi' | 'count' | 'text_summary' | 'scam_check' | 'solve'
-  | 'caption' | 'fortune';
+  | 'caption' | 'fortune' | 'inspect' | 'diagnose';
 
 export type ScamVerdict = 'likely_scam' | 'suspicious' | 'likely_legitimate' | 'unclear';
 
@@ -90,10 +90,40 @@ export interface ScannedObject {
   solve_result: SolveResult | null;
   caption_result: CaptionResult | null;
   fortune_result: FortuneResult | null;
+  inspect_result: InspectResult | null;
   profile_alerts: string[];
   source: string;
   output_language: string;
+  rarity: string | null;
+  conservation_status: string | null;
+  diagnose_result: DiagnoseResult | null;
+  text_bullets: string[];
+  condition: string | null;
+  habitat: string | null;
+  behavior: string[];
 }
+
+export interface DiagnoseResult {
+  damage_type: string;
+  sub_type: string;
+  severity: 'Minor' | 'Moderate' | 'Serious' | 'Critical';
+  root_cause: string;
+  fix_steps: string[];
+  cost_estimate: string | null;
+  professional_needed: boolean;
+  urgency: 'Can wait' | 'Fix soon' | 'Fix now';
+  is_diagnosable: boolean;
+  reason: string | null;
+}
+
+interface InspectResult {
+  rarity: string | null;
+  conservation_status: string | null;
+  condition: string | null;
+  habitat: string | null;
+  behavior: string[];
+}
+
 
 export interface MultiScanResult {
   scan_id: string;

@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Alert, Image, Animated,
+  Alert, Image, Animated, Modal, Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import { saveJournalEntry } from '../src/services/journalService';
 import { useLanguageStore } from '../src/store/languageStore';
 import { getLanguageByCode } from '../src/constants/languages';
 import { LanguageSelector } from '../src/components/common/LanguageSelector';
+import { checkFace } from '../src/services/faceService';
+import { useDeviceStore } from '../src/store/deviceStore';
 
 export default function JournalCameraScreen() {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function JournalCameraScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
   const [langOpen, setLangOpen] = useState(false);
+  const [facePopoverVisible, setFacePopoverVisible] = useState(false);
 
   // Popover
   const [popoverVisible, setPopoverVisible] = useState(false);
@@ -34,6 +37,21 @@ export default function JournalCameraScreen() {
 
   const { selectedLanguage } = useLanguageStore();
   const lang = getLanguageByCode(selectedLanguage);
+  const deviceId = useDeviceStore((s) => s.deviceId);
+
+  // Check face on mount
+  useEffect(() => {
+    const check = async () => {
+      try {
+        if (!deviceId) return;
+        const { has_face } = await checkFace(deviceId);
+        if (!has_face) setFacePopoverVisible(true);
+      } catch {
+        // silently fail — don't block journal camera
+      }
+    };
+    check();
+  }, [deviceId]);
 
   const showPopover = () => {
     setPopoverVisible(true);
@@ -70,38 +88,36 @@ export default function JournalCameraScreen() {
     }
   };
 
-  // In journal-camera.tsx, update runCapture:
-const runCapture = async (uri: string) => {
+  const runCapture = async (uri: string) => {
     setFrozenFrame(uri);
     setIsSaving(true);
     try {
-        const [base64, location] = await Promise.all([
+      const [base64, location] = await Promise.all([
         compressImage(uri),
         getLocation(),
-        ]);
+      ]);
 
-        await saveJournalEntry({
+      await saveJournalEntry({
         imageBase64: base64,
         imageUri: uri,
         location,
         language: selectedLanguage,
-        });
+      });
 
-        showPopover();
+      showPopover();
     } catch (e: any) {
-        // ← check for locked error from backend
-        if (e?.response?.status === 403) {
+      if (e?.response?.status === 403) {
         Alert.alert(
-            'Day Already Summarized',
-            'You\'ve already summarized today. Start fresh tomorrow! 🌱',
-            [{ text: 'OK', onPress: () => router.replace('/(tabs)/journal') }]
+          'Day Already Summarized',
+          "You've already summarized today. Start fresh tomorrow! 🌱",
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)/journal') }]
         );
         return;
-        }
-        Alert.alert('Error', 'Could not save to journal. Please try again.');
+      }
+      Alert.alert('Error', 'Could not save to journal. Please try again.');
     } finally {
-        setIsSaving(false);
-        setFrozenFrame(null);
+      setIsSaving(false);
+      setFrozenFrame(null);
     }
   };
 
@@ -154,32 +170,35 @@ const runCapture = async (uri: string) => {
         <ScanCamera ref={cameraRef} facing="back" flash={flash}>
 
           {/* Top bar */}
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Journal Capture</Text>
-        <View style={styles.topRight}>
-            {/* Flash */}
-            <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setFlash(f => f === 'on' ? 'off' : 'on')}
-            >
-            <Ionicons
-                name={flash === 'on' ? 'flash' : 'flash-off'}
-                size={20}
-                color={flash === 'on' ? Colors.accent : '#fff'}
-            />
+          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={22} color="#fff" />
             </TouchableOpacity>
-            {/* Journal history */}
-            <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.replace('/(tabs)/journal')}
-            >
-            <Foundation name="trees" size={20} color="#fff" />
-            </TouchableOpacity>
-        </View>
-        </View>
+            <Text style={styles.topTitle}>Journal Capture</Text>
+            <View style={styles.topRight}>
+              {/* Face setup */}
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.push('/face-setup')}
+              >
+                <Ionicons name="person-circle-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+              {/* Language selector */}
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => setLangOpen(true)}
+              >
+                <Text style={styles.flag}>{lang.flag}</Text>
+              </TouchableOpacity>
+              {/* Journal history */}
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.replace('/(tabs)/journal')}
+              >
+                <Foundation name="trees" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Hint */}
           <View style={styles.hintPill}>
@@ -204,9 +223,16 @@ const runCapture = async (uri: string) => {
               <View style={styles.shutterInner} />
             </TouchableOpacity>
 
-            {/* Language selector — replaces empty spacer */}
-            <TouchableOpacity style={styles.sideBtn} onPress={() => setLangOpen(true)}>
-              <Text style={styles.flag}>{lang.flag}</Text>
+            {/* Flash — bottom right */}
+            <TouchableOpacity
+              style={styles.sideBtn}
+              onPress={() => setFlash(f => f === 'on' ? 'off' : 'on')}
+            >
+              <Ionicons
+                name={flash === 'on' ? 'flash' : 'flash-off'}
+                size={22}
+                color={flash === 'on' ? Colors.accent : '#fff'}
+              />
             </TouchableOpacity>
           </View>
 
@@ -243,6 +269,45 @@ const runCapture = async (uri: string) => {
         </Animated.View>
       )}
 
+      {/* Face not set up popup */}
+      <Modal
+        visible={facePopoverVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFacePopoverVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setFacePopoverVisible(false)}
+        >
+          <Pressable style={[styles.facePopup, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.facePopupIconWrap}>
+              <Ionicons name="person-circle-outline" size={40} color={Colors.accent} />
+            </View>
+            <Text style={styles.facePopupTitle}>Set up your face</Text>
+            <Text style={styles.facePopupDesc}>
+              Add a photo of yourself so we can recognize you in your journal moments — to know if you're alone, with friends, or behind the camera.
+            </Text>
+            <TouchableOpacity
+              style={styles.facePopupBtn}
+              onPress={() => {
+                setFacePopoverVisible(false);
+                router.push('/face-setup');
+              }}
+            >
+              <Ionicons name="camera-outline" size={16} color="#000" />
+              <Text style={styles.facePopupBtnText}>Set up now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.facePopupSkip}
+              onPress={() => setFacePopoverVisible(false)}
+            >
+              <Text style={styles.facePopupSkipText}>Maybe later</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <LanguageSelector visible={langOpen} onClose={() => setLangOpen(false)} />
     </View>
   );
@@ -255,11 +320,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingBottom: 8,
   },
-  topRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
   iconBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -321,11 +382,54 @@ const styles = StyleSheet.create({
     borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: Colors.border,
   },
   popoverBtnText: { color: Colors.textMuted, fontSize: 13, fontWeight: '600' },
+
+  // Face popup
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  facePopup: {
+    backgroundColor: '#0a0a0a',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: '#1a1a1a',
+    paddingHorizontal: 24, paddingTop: 28,
+    alignItems: 'center',
+  },
+  facePopupIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: '#111',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#222',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16,
+  },
+  facePopupTitle: {
+    color: '#fff', fontSize: 20, fontWeight: '700',
+    letterSpacing: -0.4, marginBottom: 10, textAlign: 'center',
+  },
+  facePopupDesc: {
+    color: '#555', fontSize: 14, lineHeight: 22,
+    textAlign: 'center', marginBottom: 28,
+  },
+  facePopupBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingVertical: 16, paddingHorizontal: 32,
+    width: '100%', justifyContent: 'center',
+    marginBottom: 12,
+  },
+  facePopupBtnText: { color: '#000', fontSize: 15, fontWeight: '700' },
+  facePopupSkip: { paddingVertical: 12 },
+  facePopupSkipText: { color: '#333', fontSize: 14 },
+
+  // Permission
   permContainer: {
     flex: 1, backgroundColor: '#000',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 16,
   },
   permTitle: { color: '#fff', fontSize: 20, fontWeight: '600' },
-  permBtn: { backgroundColor: Colors.accent, borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14 },
+  permBtn: {
+    backgroundColor: Colors.accent, borderRadius: 12,
+    paddingHorizontal: 32, paddingVertical: 14,
+  },
   permBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
